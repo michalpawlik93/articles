@@ -9,7 +9,9 @@ const envKeyService = new EnvKeyService({
 });
 const encryptionService = new EncryptionService(envKeyService);
 
-const encyptedText = await encryptionService.encrypt("Hello, World!");
+const textToEncrypt = "Hello, World!";
+console.log("Text to encrypt:", textToEncrypt);
+const encyptedText = await encryptionService.encrypt(textToEncrypt);
 console.log("Encrypted text:", encyptedText);
 
 const decryptedText = await encryptionService.decrypt(encyptedText);
