@@ -1,11 +1,16 @@
-import { ISymmetricKeyService } from './ISymmetricKeyService.js';
-import { SymmetricKeyPair } from './SymmetricKeyPair.js';
-import {createEnvelope, envelopeToBytes, parseEnvelope } from './Envelope.js';
+import { ISymmetricKeyService } from "./ISymmetricKeyService.js";
+import { SymmetricKeyPair } from "./SymmetricKeyPair.js";
+import { createEnvelope, envelopeToBytes, parseEnvelope } from "./Envelope.js";
+import {
+  encryptAesGcm,
+  decryptAesGcm,
+  DATA_KEY_SIZE,
+  NONCE_SIZE,
+  TAG_SIZE,
+} from "../encryption-algorithm/AesAlgorithm.js";
+import { fromBase64 } from "../../utils/stringUtils.js";
 
 const ENVELOP_VERSION = 1;
-const DATA_KEY_SIZE = 32;
-const NONCE_SIZE = 12;
-const TAG_SIZE = 16;
 
 export interface EncryptionSettings {
   base64MasterKey: string;
@@ -16,7 +21,7 @@ export class EnvKeyService implements ISymmetricKeyService {
 
   constructor(settings: EncryptionSettings) {
     if (!settings || !settings.base64MasterKey) {
-      throw new Error('EncryptionSettings.base64MasterKey is required');
+      throw new Error("EncryptionSettings.base64MasterKey is required");
     }
     this.masterKey = fromBase64(settings.base64MasterKey);
   }
@@ -27,19 +32,12 @@ export class EnvKeyService implements ISymmetricKeyService {
     const tag = new Uint8Array(TAG_SIZE);
     const encryptedKey = new Uint8Array(DATA_KEY_SIZE);
 
-    const aesKey = await crypto.subtle.importKey(
-      'raw',
-      this.masterKey,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt']
-    );
-    const encResult = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: nonce, tagLength: TAG_SIZE * 8 },
-      aesKey,
-      dataKey
-    );
-    const encBytes = new Uint8Array(encResult);
+    const encBytes = await encryptAesGcm({
+      key: this.masterKey,
+      data: dataKey,
+      nonce,
+      tagLength: TAG_SIZE * 8,
+    });
     encryptedKey.set(encBytes.slice(0, DATA_KEY_SIZE));
     tag.set(encBytes.slice(DATA_KEY_SIZE, DATA_KEY_SIZE + TAG_SIZE));
 
@@ -52,7 +50,7 @@ export class EnvKeyService implements ISymmetricKeyService {
     );
     return {
       decryptedDataKey: dataKey,
-      encryptedDataKey: envelopeToBytes(envelope)
+      encryptedDataKey: envelopeToBytes(envelope),
     };
   }
 
@@ -61,31 +59,17 @@ export class EnvKeyService implements ISymmetricKeyService {
     if (envelope.version !== ENVELOP_VERSION) {
       throw new Error(`Unsupported Envelope version: ${envelope.version}`);
     }
-    const aesKey = await crypto.subtle.importKey(
-      'raw',
-      this.masterKey,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt']
+    const encAndTag = new Uint8Array(
+      envelope.encryptedKey.length + envelope.tag.length
     );
-    const encAndTag = new Uint8Array(envelope.encryptedKey.length + envelope.tag.length);
     encAndTag.set(envelope.encryptedKey, 0);
     encAndTag.set(envelope.tag, envelope.encryptedKey.length);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: envelope.nonce, tagLength: TAG_SIZE * 8 },
-      aesKey,
-      encAndTag
-    );
-    return new Uint8Array(decrypted);
+    const decrypted = await decryptAesGcm({
+      key: this.masterKey,
+      encrypted: encAndTag,
+      nonce: envelope.nonce,
+      tagLength: TAG_SIZE * 8,
+    });
+    return decrypted;
   }
-}
-
-function fromBase64(b64: string): Uint8Array {
-  if (typeof Buffer !== 'undefined') {
-    return Uint8Array.from(Buffer.from(b64, 'base64'));
-  }
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; ++i) arr[i] = bin.charCodeAt(i);
-  return arr;
 }
