@@ -21,31 +21,13 @@ Component 1: Envelope
 
 The domain layer and the heart of this concept is the Envelope. An Envelope is a kind of wrapping function that consists of all factors needed to effectively encrypt data. Instead of storing a plain text secret, we want to store the Envelope in an encoded form. Thanks to the Envelope's schema, we can recreate its properties from a Base64 text string.
 
-```c#
-public sealed record Envelope(
-	byte[] EncryptedKey,
-	byte[] CipherText)
-{
-	public byte[] ToBytes() {
-		using var ms = new MemoryStream();
-		ms.WriteByte((byte)EncryptedKey.Length);
-		ms.Write(EncryptedKey);
-		ms.Write(CipherText);
-		return ms.ToArray();
-	}
-
-	public static Envelope Parse(byte[] data) {
-		using var ms = new MemoryStream(data);
-		var keyLength = ms.ReadByte();
-		if (keyLength < 1)
-			throw new InvalidDataException("Invalid Envelope: key length missing");
-
-		var encryptedKey = ms.ReadBytes(keyLength);
-		var remaining = ms.Length - ms.Position;
-		var cipherText = ms.ReadBytes((int)remaining);
-
-		return new Envelope(encryptedKey, cipherText);
-	}
+```JavaScript
+interface Envelope {
+  version: number;
+  encryptedKey: Uint8Array;
+  nonce: Uint8Array;
+  tag: Uint8Array;
+  cipherText: Uint8Array;
 }
 ```
 
@@ -62,81 +44,93 @@ ISymmetricKeyService is an interface representing two methods. If you are using 
 
 SymmetricKeyPair is a class representing the DecryptedDataKey, which you can generate randomly or retrieve from a third-party service. EncryptedDataKey is the data key encrypted with your Master Key.
 
-```c#
-public interface ISymmetricKeyService
-{
-	Task<SymmetricKeyPair> GetDataKey(CancellationToken cancellationToken);
-	Task<MemoryStream> DecryptDataKey(byte[] ciphertext, CancellationToken cancellationToken);
+```JavaScript
+interface ISymmetricKeyService {
+  getDataKey(): Promise<SymmetricKeyPair>;
+  decryptDataKey(ciphertext: Uint8Array): Promise<Uint8Array>;
 }
 
-public record SymmetricKeyPair(MemoryStream EncryptedDataKey, MemoryStream DecryptedDataKey);
+interface SymmetricKeyPair {
+  encryptedDataKey: Uint8Array;
+  decryptedDataKey: Uint8Array;
+}
 ```
 
 Component 3: Encryption Service
 
 Encryption service contains business logic to encrypt/decrypt data and create Envelope object. There you put your encryption algorithm.
 
-```c#
-using System.Security.Cryptography;
-using System.Text;
+```JavaScript
+class EncryptionService implements IEncryptionService {
+  private readonly symmetricKeyService: ISymmetricKeyService;
+  private static readonly ENVELOP_VERSION = 1;
 
-namespace Creatio.Embedded.Core.Features.Encryption;
+  constructor(symmetricKeyService: ISymmetricKeyService) {
+    if (!symmetricKeyService)
+      throw new Error("symmetricKeyService is required");
+    this.symmetricKeyService = symmetricKeyService;
+  }
 
-public interface IEncryptionService
-{
-	Task<string> Encrypt(string plainText);
-	Task<string> Decrypt(string cipherText);
-}
+  private static isEncrypted(input: string): boolean {
+    try {
+      parseEnvelope(fromBase64(input));
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
-public class EncryptionService : IEncryptionService
-{
-	private readonly ISymmetricKeyService _symmetricKeyService;
+  async encrypt(plainText: string): Promise<string> {
+    if (EncryptionService.isEncrypted(plainText)) {
+      throw new Error("The input text is already encrypted.");
+    }
+    const plaintextBytes = new TextEncoder().encode(plainText);
+    const keyPair = await this.symmetricKeyService.getDataKey();
+    const dek = keyPair.decryptedDataKey;
+    const nonce = crypto.getRandomValues(new Uint8Array(NONCE_SIZE));
+    const tagLength = TAG_SIZE;
+    const encBytes = await encryptAesGcm({
+      key: dek,
+      data: plaintextBytes,
+      nonce,
+      tagLength: tagLength * 8,
+    });
+    const cipherText = encBytes.slice(0, plaintextBytes.length);
+    const tag = encBytes.slice(
+      plaintextBytes.length,
+      plaintextBytes.length + tagLength
+    );
+    const dataEnvelope = createEnvelope(
+      EncryptionService.ENVELOP_VERSION,
+      keyPair.encryptedDataKey,
+      nonce,
+      tag,
+      cipherText
+    );
+    return bytesToBase64(envelopeToBytes(dataEnvelope));
+  }
 
-	public EncryptionService(ISymmetricKeyService symmetricKeyService) {
-		ArgumentNullException.ThrowIfNull(symmetricKeyService, nameof(symmetricKeyService));
-		_symmetricKeyService = symmetricKeyService;
-	}
-
-	public async Task<string> Encrypt(string plainText) {
-		var plaintextBytes = Encoding.UTF8.GetBytes(plainText);
-
-		var keyPair = await _symmetricKeyService
-			.GetDataKey(CancellationToken.None);
-
-		var dek = keyPair.DecryptedDataKey.ToArray();
-		var cipherText = new byte[plaintextBytes.Length];
-
-
-	// TODO: Implement encryption using your preferred algorithm (e.g., AES, RSA, ChaCha20)
-	// var cipherText = YourEncryptionFunction(plaintextBytes, dek);
-
-		var dataEnvelop = new Envelope(
-			EncryptedKey: keyPair.EncryptedDataKey.ToArray(),
-			CipherText: cipherText
-		);
-
-		return Convert.ToBase64String(dataEnvelop.ToBytes());
-	}
-
-	public async Task<string> Decrypt(string cipherText) {
-		var envelopeBytes = Convert.FromBase64String(cipherText);
-		var envelop = Envelope.Parse(envelopeBytes);
-
-		var dekStream = await _symmetricKeyService
-			.DecryptDataKey(envelop.EncryptedKey, CancellationToken.None);
-
-		var dek = dekStream.ToArray();
-		var plaintext = new byte[envelop.CipherText.Length];
-
-	// TODO: Implement encryption using your preferred algorithm (e.g., AES, RSA, ChaCha20)
-	// var cipherText = YourDecryptionFunction(plaintextBytes, dek);
-
-		return Encoding.UTF8.GetString(plaintext);
-	}
+  async decrypt(cipherText: string): Promise<string> {
+    const envelopeBytes = fromBase64(cipherText);
+    const envelope = parseEnvelope(envelopeBytes);
+    const dek = await this.symmetricKeyService.decryptDataKey(
+      envelope.encryptedKey
+    );
+    const encAndTag = new Uint8Array(
+      envelope.cipherText.length + envelope.tag.length
+    );
+    encAndTag.set(envelope.cipherText, 0);
+    encAndTag.set(envelope.tag, envelope.cipherText.length);
+    const decrypted = await decryptAesGcm({
+      key: dek,
+      encrypted: encAndTag,
+      nonce: envelope.nonce,
+      tagLength: envelope.tag.length * 8,
+    });
+    return new TextDecoder().decode(decrypted);
+  }
 }
 ```
-Note:
-This implementation does not impose a specific encryption algorithm (like AES or RSA). You are expected to implement encryption and decryption logic depending on your use case, performance/security requirements, and available libraries. The Encrypt and Decrypt methods in the EncryptionService are intentionally left with placeholders.
 
 Summary:
 
@@ -157,4 +151,4 @@ Disadvantages:
 - Encrypting and decrypting data requires more CPU resources.
 
 Full implementation you can find in github repo of PlugAI Team.
-https://github.com/CreatioRnDHub/Outlook.AI.Embedded/tree/hardcore-dev/src/Creatio.Embedded.Core/Features/Encryption
+https://github.com/michalpawlik93/articles/tree/main/encryption
