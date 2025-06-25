@@ -71,19 +71,7 @@ class EncryptionService implements IEncryptionService {
     this.symmetricKeyService = symmetricKeyService;
   }
 
-  private static isEncrypted(input: string): boolean {
-    try {
-      parseEnvelope(fromBase64(input));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   async encrypt(plainText: string): Promise<string> {
-    if (EncryptionService.isEncrypted(plainText)) {
-      throw new Error("The input text is already encrypted.");
-    }
     const plaintextBytes = new TextEncoder().encode(plainText);
     const keyPair = await this.symmetricKeyService.getDataKey();
     const dek = keyPair.decryptedDataKey;
