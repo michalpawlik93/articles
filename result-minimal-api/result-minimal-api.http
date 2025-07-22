@@ -1,0 +1,35 @@
+@result_minimal_api_HostAddress = http://localhost:5249
+
+### Get Product by ID
+GET {{result_minimal_api_HostAddress}}/products/550e8400-e29b-41d4-a716-446655440000
+Accept: application/json
+
+###
+
+### Get Product by ID - Not Found
+GET {{result_minimal_api_HostAddress}}/products/sample-product-id
+Accept: application/json
+
+###
+
+### Create New Product (without ID - will generate new)
+POST {{result_minimal_api_HostAddress}}/products
+Content-Type: application/json
+
+{
+  "id": null,
+  "name": "New Sample Product"
+}
+
+###
+
+### Update Existing Product (with ID)
+POST {{result_minimal_api_HostAddress}}/products
+Content-Type: application/json
+
+{
+  "id": "existing-product-id",
+  "name": "Updated Product Name"
+}
+
+###
