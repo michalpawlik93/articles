@@ -4,3 +4,5 @@ node_modules/
 bin/
 .vs/
 obj/
+lancedb/
+dist/
