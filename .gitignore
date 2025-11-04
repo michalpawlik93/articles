@@ -4,5 +4,5 @@ node_modules/
 bin/
 .vs/
 obj/
-lancedb/
+vectorDb/
 dist/

@@ -28,7 +28,7 @@ const defaults: AppConfiguration = {
     chatModel: "Xenova/Qwen1.5-1.8B-Chat",
   },
   lanceDb: {
-    path: "./lancedb",
+    path: "./vectorDb",
   },
 };
 
