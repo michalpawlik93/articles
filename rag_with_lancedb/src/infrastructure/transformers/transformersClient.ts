@@ -30,15 +30,38 @@ export class TransformersClient {
     transformersEnv.allowLocalModels = true;
   }
 
-  async initialize(): Promise<void> {
-    await Promise.all([
-      this.getVisionProcessor(),
-      this.getVisionModel(),
-      this.getTextEmbeddingPipeline(),
-      this.getChatPipeline(),
-      this.getClipTokenizer(),
-      this.getClipTextModel(),
-    ]);
+async initialize(): Promise<void> {
+    const loaders: Array<[string, Promise<unknown>]> = [
+      ["visionProcessor", this.getVisionProcessor()],
+      ["visionModel", this.getVisionModel()],
+      ["textEmbeddingPipeline", this.getTextEmbeddingPipeline()],
+      ["clipTokenizer", this.getClipTokenizer()],
+      ["clipTextModel", this.getClipTextModel()],
+      ["chatPipeline", this.getChatPipeline()],
+    ];
+
+    const results = await Promise.all(
+      loaders.map(async ([name, p]) => {
+        try {
+          await p;
+          console.log(`[Transformers] ${name} ready.`);
+          return { name, ok: true };
+        } catch (error) {
+          console.error(`[Transformers] Failed to load ${name}:`, error);
+          return { name, ok: false, error };
+        }
+      })
+    );
+
+    const failed = results.filter(r => !r.ok);
+    if (failed.length === 0) {
+      console.log("[Transformers] Embedding models ready.");
+    } else {
+      console.warn(
+        `[Transformers] Embedding initialization completed with ${failed.length} failure(s): ` +
+          failed.map(f => f.name).join(", ")
+      );
+    }
   }
 
   async getVisionProcessor(): Promise<any> {

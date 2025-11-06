@@ -25,7 +25,7 @@ const defaults: AppConfiguration = {
     imageEmbeddingDimension: 512, // CLIP ViT-B/32 embedding dimension
     textEmbeddingModel: "Xenova/all-MiniLM-L6-v2",
     textEmbeddingDimension: 384, // MiniLM sentence embedding dimension
-    chatModel: "Xenova/Qwen1.5-1.8B-Chat",
+    chatModel: "Xenova/Qwen1.5-0.5B-Chat",
   },
   lanceDb: {
     path: "./vectorDb",
