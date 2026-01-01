@@ -1,0 +1,72 @@
+1.Wstep:
+Artykol ten przedstawia propozycje pisania POC z minimalnymi zalozeniami architektonicznymi. Skierowany jest to osob zaczynajacych swoja przygode w profesjonalnych firmach.
+W firmach zazwyczaj architektura domeny jest ustalona. Istnieja gotowe templejty lub odgorne zasady mowiae o tym jakiej architektury pwowinimsy sie trzymac piszac nowa funkcjonalnosc.
+Czasem czlowiek zanjdzie sie jednak w syytuacji gdy nie ma takich wytycznych bo projektow w firmie sa tysiace tak jak klientow. Nie ma dostepu do zasobow firmy, a prrogramiasta dostal zadanie stworzenia POC dla klienta.
+Zwykle StakeHorlderzy nie wymagaja zadnej archtiektury ani porzadku w kodzie bo to tylko POC. Jednak w wielu przypadkach POC staje sie pozniej wersja produkcyjna. Co wtedy robic jezeli tworzymy miesiac nasz spaggetti kod? Potrzebujemy pewnego teplejtu albo
+chociaz wiedzy o tym jak ustruktoryzowac nasz project.
+
+2.Zloznosc vs prostota
+
+Pierwsyzm argumentem rpzeciwko jakielkowiek arhcitkturze moze byc nieptorzebna zlozonosc. Skoro to tylko POC czemu nie zrobic tego w paru plikach i flat folder structure? We wszystkim musi byc balans. Pierwsza rzecza jest to ze na obencyh wymaganiach sie proawodpodbnei sie nie skonczy.
+Jak oddasz swoje POC to stakehodle bedzie chcial dorobic 10 innych. Kazde POC jest tylko proste z nazwy. Druga sprawa jest mindest pogramisty ktory przyjdzie po Tobie tworzyc production ready wersje. Widzac pierwzy raz na oczy repozytirum , programista szuka patternu
+i proboje zrozumiec structure. Zdecydowanie trudniej mu bedzie czytac nazwy plikow w flat structure i nawigowac z entry pointu w dol.
+
+To sprowadza nas do wniosku ze warto jakas architketur zastosowac Tylko jaka? Nie chcemy spedzic na tym polowy wyznaczonego czasu? Omowmy Sobie pare sprawdzoncyh sposobow.
+
+3. OOP vs Functional
+ 
+Pierwsza sprawa jaka naezy ustalic to jakim paradygmtm chcem podazac. Czy wolimy kod bardziej funkcjonalny czy obiektowy. Jest mozliwosc mieszania tych dwuch stylow jednak jezli zakladamy Sobie od poczatkuze chcemy Pisac funnkcyjnie to struktura projektu powinna to oddawac.
+WYbranie podejscia obeiktowego daje nam wiekszosc dowolosc. Podstawowa architektura dla OOP jest Layreded architecture. Wiele badziej zaawansownych wzorcow rozserza ten concept.
+GLowny koncpet polega na podziale projektru na warswty. Warstwy ten sa od siebie odseparowane. Ilosc warstw zalezy od samego programisty ale najabrdziej pdostaowwe do warstwa Prezentacji, Aplikacji, Infrasturktury.
+Umeiszcza sie je w tkaiej kolejnosci poneiwaz ruch odbywa sie od gornej warstwy do dolnej. W warstwie prezentacji umieszczamy komponenty z ktorymi komunikuje sie swiat zewnetrzny takie jak API, Console App, etc.
+W wrastwie applikacji umeiszczamy logike biznesowa cyzli serwisy, command handlery etc. W warstwie infrastuktury umieszczamy repozytoria, klientow, etc.
+
+
+Obrazek pokazujacy prosty schemat layerd arch.
+
+Ruch odbywa sie zwykle od warstwy prezentacji do warstwy na dole. Nie powinnismy zezwalac na odpytywanie dolnej warstwy z pominieciem innej. Aby nalozyc te reguly frameowrki czesto pozwalaja nam na definiownie regul np reguly lintowe z uzyciem node js albo unti testy powiazan miedzy prjektami w c#.
+Waznym zagadnieniem tez jest organizacja kontenerow dependency injection. Dzieki warstwowemu modelu mozemy wyznaczyc kontenery w warstwie prezentacji gdzie zarejestrujemy nasze uzywane klasy. Pozwoli to nam na posiadanie konfiguracji per aplikacja. Nasz api server moze miec potrzebe uzywac serwisu
+z warstwy aplikacji z innym lifetime niz aplikacja konsolowa czy scheduler. Przez lifetime rozumiemy tutaj jak klasa jest rejestowana czyli czy jest np Singletonem , per request albo zawsze nowa przy odczycie.
+
+
+Obrazek pokazujacy 3 klasy w 3 roznych warstwach jak sie wywoluja.
+
+Larayed architecture mozna stosowac tez z programowaniem funkcyjnym jednak ten wzorzec nie oddaje samego zamyslu functional programming. Glonwym koncpetem FP jest odseparowanie logiki biznesowej opartej na prue functions od wszelkich side efektow np api callow, db callow.
+W tym przypadku tworzac strutkure projektu powinnismy sie tym kierowac. Logika biznesowa powinna byc nie zalezna od side efektow i ich implenetacji. Jednym z ciekawszych wzorcow ktore ten concept implentuja jest Imperative Shell o ktorym w nastepnym rozdziale.
+
+
+4. bardziej zaawansowana architekrua.
+Istnieja rozserzenai  konceptow wymienionych w punkcie 3. Daja one wieksze mozliwosci w skalowalnosci oraz luzneog powiazania. Z doswiadczenia wiem ze zawsze lepiej odrazu wybrac jednego z nich przy tworzneiu projektu i podarzac tym sposobem. Trzeba jednak
+wpierw zaznajomi sie z nimi dobrze aby nie spedzac calych dni na architkturze i setupie projektu. Ponizej wymienie pare z z krotkim opisem wraz z linkami do artykolow dgzie sa dobrze wytlumaczone. Kazdy zasluguje na osobny artykul. Wzoce te opieraja sie zwykle
+na podobnych konceptach przykladowo Hexagonal architecture moze byz rowniez uzyta w wzorcu Imperative shell. Wazne aby wiedziec ze takie wzorce istnieja i sprobowac ich w praktyce.
+
+Onion architecture.
+obrazek
+
+Onion architecture
+Onion architecture is a type of layered architecture that can be visualized as a series of concentric circles, resembling the layers of an onion. Jeffrey Palermo first introduced this architecture to address the shortcomings of the traditional N-layered architecture approach.
+
+Imperative Shell
+Functional Core / Imperative Shell (FC/IS) is an architectural pattern that separates an application into two parts:
+Functional Core – Pure, stateless, side-effect-free logic. It only takes input and returns output, like a pure function in functional programming.
+Imperative Shell – The outer layer that handles side effects such as HTTP requests, database calls, file access, and sending responses.
+
+Link to my simple implementation:
+
+Hexagonal
+Hexagonal Architecture, also known as Ports and Adapters, is a software architecture pattern that separates the core logic of the application from external concerns such as databases, APIs, and UI.
+At its center is the Application , which contains the use cases and communicates only through abstract interfaces called ports.
+External systems interact with the Application through adapters, which implement those ports. This makes the system more testable, modular, and easier to maintain.
+
+Vertical slice
+Instead of horizontal layers (Presentation, Application, Domain), VSA organizes code by feature. Each feature encompasses everything it needs, from API endpoints to data access.
+
+ 
+
+5. Zakonczenie
+Moim zdaniem zawsze warto wybrac architecture przed tworzeniem POC. Pomoze tez to naszemu mozgowi w uporzadkowaniu kodu i zrozumieniu perspektywy. Pozowli tez to nam na szybsze wykrycie problemow ze skalowalnoscia naszej aplikacji.
+Minimum jakie powinnismy zawsze wybrac jest larayerd architecture zlozona z 3 warstw jezlei uzywamy OOP -obejc toritented programing lub Imeprative shell jak uzywamy functional programing.
+Jezlei czujemy sie biegle w jednym z rpzedstawionych patternow (onion, hexagonal etc) i znamy wiecej szczegolow o przyszlosci POC mozemy wybrac jeden z proponowanych patternow. Na przyklad majac na uwadze ze bedziemy mueisli testowac w naszym POC
+rozne bazy danych czy roznych kleinow 3TH party warto uzyc architkruy hexagonalnej z portami. Dzieki temu bedziemy mogli testowac roznych providerow przy zachowaniu jednje logiki biznesowej.
+
+Rozwinieciem tego tematu jest perspektywa mikroseriwsow i modularnego monolitu czyli co dalej robic jak POC ma byc pzobrazone w cos wiekszego a na horyzoncie pojawias sie nowe teamy ktore maja cos do teog dobudowac. Ale o tym w kolejnych postach.

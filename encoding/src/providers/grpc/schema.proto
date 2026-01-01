@@ -1,0 +1,18 @@
+syntax = "proto3";
+package bus.v1;
+
+message Address {
+  string country = 1;
+  string city = 2;
+  string street = 3;
+  int32 zip = 4;
+}
+
+message CommandPayload {
+  string id = 1;
+  string name = 2;
+  int32 age = 3;
+  repeated string tags = 4;
+  Address address = 5;
+  int64 createdAt = 6;
+}
