@@ -24,10 +24,3 @@ export interface PayloadEncoder {
   decode: (payload: Uint8Array) => CommandPayload;
   benchmark: (payload: CommandPayload, iterations?: number) => BenchmarkResult;
 }
-
-export interface TransportEncoder {
-  name: string;
-  encode: (payload: Uint8Array) => Uint8Array;
-  decode: (payload: Uint8Array) => Uint8Array;
-  benchmark: (payload: Uint8Array, iterations?: number) => BenchmarkResult;
-}

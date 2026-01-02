@@ -1,12 +1,18 @@
 import { AvroEncoder } from './providers/avro/avro-payload-encoder.js';
-import { AvroTransportEncoder } from './providers/avro/avro-transport-encoder.js';
-import { GrpcTransportEncoder } from './providers/grpc/grpc-transport-encoder.js';
 import { ProtobufEncoder } from './providers/grpc/protobuf-encoder.js';
 import { JsonEncoder } from './providers/json/json-encoder.js';
+import { ThriftEncoder } from './providers/thrift/thrift-encoder.js';
+import { XmlEncoder } from './providers/xml/xml-encoder.js';
 import { samplePayload } from './test-data/test-command.js';
 
 async function main() {
-  const payloadEncoders = [JsonEncoder(), AvroEncoder(), ProtobufEncoder()];
+  const payloadEncoders = [
+    JsonEncoder(),
+    AvroEncoder(),
+    ProtobufEncoder(),
+    ThriftEncoder(),
+    XmlEncoder(),
+  ];
   const iterations = 1000;
 
   const payloadResults = payloadEncoders.map((encoder) => {
@@ -19,7 +25,7 @@ async function main() {
 
     const bench = encoder.benchmark(samplePayload, iterations);
     return {
-      format: encoder.name,
+      format: encoder.name === 'Thrift' ? `${encoder.name}*` : encoder.name,
       payloadBytes: bench.payloadBytes,
       encodeMs: Number(bench.encodingTimeMs.toFixed(3)),
       decodeMs: Number(bench.decodingTimeMs.toFixed(3)),
@@ -28,34 +34,9 @@ async function main() {
 
   console.log(`Iterations: ${iterations}`);
   console.table(payloadResults);
-
-  const avroPayload = payloadEncoders[1].encode(samplePayload);
-  const protobufPayload = payloadEncoders[2].encode(samplePayload);
-
-  const transportEncoders = [
-    { encoder: AvroTransportEncoder(), payload: avroPayload, decoder: payloadEncoders[1] },
-    { encoder: GrpcTransportEncoder(), payload: protobufPayload, decoder: payloadEncoders[2] },
-  ];
-
-  const transportResults = transportEncoders.map(({ encoder, payload, decoder }) => {
-    const encoded = encoder.encode(payload);
-    const decodedPayload = encoder.decode(encoded);
-    const decodedMessage = decoder.decode(decodedPayload);
-
-    if (JSON.stringify(decodedMessage) !== JSON.stringify(samplePayload)) {
-      throw new Error(`${encoder.name}: payload mismatch after transport decode`);
-    }
-
-    const bench = encoder.benchmark(payload, iterations);
-    return {
-      format: encoder.name,
-      payloadBytes: bench.payloadBytes,
-      encodeMs: Number(bench.encodingTimeMs.toFixed(3)),
-      decodeMs: Number(bench.decodingTimeMs.toFixed(3)),
-    };
-  });
-
-  console.table(transportResults);
+  console.log(
+    '* Thrift results use the official thrift JS library, which performs many small protocol/transport writes and object allocations. A hand-optimized, domain-specific binary encoder (or a lower-level implementation) can be significantly faster.',
+  );
 }
 
 main().catch((e) => {

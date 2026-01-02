@@ -1,28 +1,23 @@
-# Encoding & Transport Benchmark
+# Encoding Benchmark
 
-This project compares payload size and encode/decode time for three data formats:
+This project compares payload size and encode/decode time for data formats:
 
 - JSON (UTF-8, self-describing)
 - Avro (binary, schema-based)
 - Protobuf (binary, schema-based)
+- Thrift (binary, schema-based)
+- XML (text, schema-less)
 
 The benchmark uses the same domain object across all formats and runs 1000 iterations.
-
-Additionally, it compares the real transport cost:
-
-- Avro transport: Avro payload with a lightweight schema reference envelope
-- gRPC transport: Protobuf payload with gRPC framing (+5 bytes)
 
 The goal is to show:
 
 - differences in payload size,
-- the impact of encoding format on performance,
-- overhead introduced by the transport layer.
+- the impact of encoding format on performance.
 
 Notes:
-- The transport decode includes the payload decode (gRPC transport includes Protobuf decode, Avro transport includes Avro decode).
 - Results include library/runtime overhead and in-process IO (no network).
-- The gRPC framing measured here is the minimal 5-byte message frame without HTTP/2 headers, flow control, or network costs.
+- Thrift results use the official thrift JS library, which performs many small protocol/transport writes and object allocations. A hand-optimized, domain-specific binary encoder (or a lower-level implementation) can be significantly faster.
 
 ## Run
 
